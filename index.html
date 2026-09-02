@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>体重日记</title>
+<!-- 关联 PWA 清单文件 -->
+<link rel="manifest" href="manifest.json">
+<!-- 为 iOS 添加支持（可选） -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ---------- 基础样式 ---------- */
+  :root{
+	--bg:#F7F5F0;
+	--card:#FFFFFF;
+	--ink:#262421;
+	--ink-soft:#8a8578;
+	--line:#E3DED2;
+	--morning:#5C6BC0;
+	--morning-soft:#EAEBF8;
+	--evening:#C17A3B;
+	--evening-soft:#F7EADA;
+	--good:#6E8A63;
+	--good-soft:#EAF0E6;
+	--neutral:#9C8A56;
+	--neutral-soft:#F4EFDF;
+	--alert:#B25A4A;
+	--alert-soft:#F6E5E1;
+	--warning:#D48C2C;
+	--warning-soft:#FDF0E0;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+	margin:0; background:var(--bg); color:var(--ink);
+	font-family:'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+	-webkit-font-smoothing:antialiased;
+  }
+  #app{max-width:480px; margin:0 auto; padding:20px 16px 48px;}
+  header{padding:6px 2px 12px; border-bottom:1px solid var(--line); margin-bottom:12px;}
+  header h1{
+	font-family:'Source Serif 4', Georgia, "Songti SC", serif;
+	font-weight:600; font-size:26px; margin:0 0 4px;
+	letter-spacing:0.2px;
+  }
+  header .date{font-size:13px; color:var(--ink-soft);}
+  .user-card{
+	background:var(--card); border-radius:14px; padding:12px 16px;
+	margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;
+	cursor:pointer; transition:background .1s;
+  }
+  .user-card:active{background:var(--line);}
+  .user-card .info{display:flex; gap:12px; align-items:baseline; flex-wrap:wrap;}
+  .user-card .nickname{font-weight:600; font-size:16px;}
+  .user-card .height{font-size:14px; color:var(--ink-soft);}
+  .user-card .gender{font-size:14px; color:var(--ink-soft);}
+  .user-card .placeholder{color:var(--ink-soft); font-size:14px;}
+  .user-card .edit-hint{color:var(--ink-soft); font-size:12px;}
+  section{margin-bottom:28px;}
+  section > .section-label{font-size:13px; color:var(--ink-soft); margin:0 0 10px; font-weight:500;}
+  .today-grid{display:flex; gap:10px;}
+  .slot{
+	flex:1; background:var(--card); border-radius:14px; padding:14px 14px 16px;
+	border-left:4px solid var(--m-color); cursor:pointer; transition:transform .12s ease;
+	min-height:92px; display:flex; flex-direction:column; justify-content:space-between;
+  }
+  .slot:active{transform:scale(0.98);}
+  .slot.morning{--m-color:var(--morning);}
+  .slot.evening{--m-color:var(--evening);}
+  .slot .slot-label{font-size:13px; color:var(--ink-soft); display:flex; justify-content:space-between; align-items:center;}
+  .slot .slot-time{font-size:11px; color:var(--ink-soft);}
+  .slot .slot-value{font-family:'Inter',sans-serif; font-variant-numeric:tabular-nums; font-weight:700; font-size:26px; margin-top:10px;}
+  .slot .slot-value .unit{font-size:13px; font-weight:500; color:var(--ink-soft); margin-left:2px;}
+  .slot .slot-empty{margin-top:10px; font-size:14px; color:var(--m-color); font-weight:600;}
+  .stats-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .stat{
+	flex:1; min-width:100px; background:var(--card); border-radius:14px; padding:14px 12px; text-align:left;
+	position:relative;
+  }
+  .stat .stat-label{font-size:12px; color:var(--ink-soft); margin-bottom:6px;}
+  .stat .stat-value{font-variant-numeric:tabular-nums; font-weight:700; font-size:20px; margin-bottom:6px;}
+  .stat .stat-value.good{color:var(--good);}
+  .stat .stat-value.neutral{color:var(--neutral);}
+  .stat .stat-value.alert{color:var(--alert);}
+  .stat .stat-value.warning{color:var(--warning);}
+  .stat .stat-value.empty{color:var(--ink-soft); font-weight:600; font-size:16px;}
+  .stat .stat-text{font-size:11.5px; line-height:1.5; color:var(--ink-soft);}
+  .stat .stat-warning{
+	background:var(--warning-soft); color:var(--warning); padding:4px 8px; border-radius:6px;
+	font-size:11px; font-weight:600; margin-top:6px; display:inline-block;
+  }
+  .stat .stat-alert{
+	background:var(--alert-soft); color:var(--alert); padding:4px 8px; border-radius:6px;
+	font-size:11px; font-weight:600; margin-top:6px; display:inline-block;
+  }
+  .chart-card{background:var(--card); border-radius:14px; padding:16px 14px;}
+  .chart-empty{font-size:13px; color:var(--ink-soft); padding:20px 4px; text-align:center;}
+  .chart-labels{display:flex; justify-content:space-between; font-size:11px; color:var(--ink-soft); margin-top:4px;}
+  .history-list{background:var(--card); border-radius:14px; overflow:hidden;}
+  .history-row{display:flex; align-items:center; padding:12px 14px; border-bottom:1px solid var(--line); gap:10px;}
+  .history-row:last-child{border-bottom:none;}
+  .history-date{width:76px; font-size:13px; color:var(--ink-soft); flex-shrink:0;}
+  .history-cell{flex:1; display:flex; align-items:baseline; gap:4px; font-size:14px; padding:4px 8px; border-radius:8px; cursor:pointer;}
+  .history-cell.morning{background:var(--morning-soft); color:var(--morning);}
+  .history-cell.evening{background:var(--evening-soft); color:var(--evening);}
+  .history-cell.empty{background:transparent; color:var(--ink-soft); font-size:12px;}
+  .history-cell .w{font-weight:700; font-variant-numeric:tabular-nums;}
+  .more-btn{
+	display:block; width:100%; margin-top:12px; padding:12px; text-align:center;
+	background:transparent; border:1px dashed var(--line); border-radius:12px;
+	color:var(--ink-soft); font-size:13px; font-family:inherit; cursor:pointer;
+  }
+  .empty-state{background:var(--card); border-radius:14px; padding:32px 20px; text-align:center;}
+  .empty-state p{font-size:14px; color:var(--ink-soft); line-height:1.7; margin:0 0 16px;}
+  .empty-state button{
+	font-family:inherit; font-size:14px; font-weight:600; color:#fff; background:var(--morning);
+	border:none; border-radius:10px; padding:10px 20px; cursor:pointer;
+  }
+  .disclaimer{font-size:11.5px; color:var(--ink-soft); line-height:1.7; padding:0 4px;}
+  /* ---------- 弹窗（使用 bottom 控制位置） ---------- */
+  .overlay{
+	position:fixed; inset:0; background:rgba(38,36,33,0.4); display:flex; align-items:flex-end;
+	z-index:50; opacity:0; pointer-events:none; transition:opacity .18s ease;
+  }
+  .overlay.open{opacity:1; pointer-events:auto;}
+  .sheet{
+	background:var(--bg);
+	width:100%;
+	max-width:480px;
+	margin:0 auto;
+	border-radius:20px 20px 0 0;
+	position:absolute;
+	left:0; right:0;
+	bottom:0;
+	max-height: calc(100dvh - 24px);
+	padding:20px 20px calc(24px + env(safe-area-inset-bottom));
+	transition: bottom 0.2s ease;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+  }
+  .sheet-content{
+	flex: 1;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+	margin: 0 -4px;
+	padding: 0 4px;
+  }
+  .sheet h2{font-family:'Source Serif 4',Georgia,serif; font-size:19px; margin:0 0 16px; font-weight:600;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:6px;}
+  .field input, .field select{
+	width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px;
+	font-size:15px; font-family:inherit; background:var(--card); color:var(--ink);
+  }
+  .field select{appearance:auto;}
+  .period-toggle{display:flex; gap:8px;}
+  .period-toggle button{
+	flex:1; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--card);
+	font-family:inherit; font-size:14px; color:var(--ink-soft); cursor:pointer;
+  }
+  .period-toggle button.active.morning{background:var(--morning-soft); color:var(--morning); border-color:var(--morning);}
+  .period-toggle button.active.evening{background:var(--evening-soft); color:var(--evening); border-color:var(--evening);}
+  .sheet-actions{display:flex; gap:10px; margin-top:18px; padding-bottom:4px;}
+  .sheet-actions button{
+	font-family:inherit; font-size:14.5px; font-weight:600; border-radius:11px; padding:12px; cursor:pointer; border:none;
+  }
+  .btn-save{flex:1; background:var(--ink); color:#fff;}
+  .btn-cancel{background:transparent; color:var(--ink-soft); border:1px solid var(--line) !important;}
+  .btn-delete{background:var(--alert-soft); color:var(--alert);}
+  .toast{
+	position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+	background:var(--ink); color:#fff; font-size:13px; padding:10px 18px; border-radius:20px;
+	opacity:0; transition:all .25s ease; pointer-events:none; z-index:60;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .bmi-list{background:var(--card); border-radius:14px; overflow:hidden;}
+  .bmi-row{display:flex; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--line); font-size:13px;}
+  .bmi-row:last-child{border-bottom:none;}
+  .bmi-row .bmi-date{color:var(--ink-soft);}
+  .bmi-row .bmi-value{font-weight:600;}
+  .bmi-row .bmi-tag{font-size:11px; background:var(--bg); padding:2px 8px; border-radius:10px; color:var(--ink-soft);}
+  .bmi-row .bmi-tag.underweight{background:#E3F0FC; color:#2C6B9E;}
+  .bmi-row .bmi-tag.normal{background:#E0F0E0; color:#2E7D32;}
+  .bmi-row .bmi-tag.overweight{background:#FFF3E0; color:#B76E0A;}
+  .bmi-row .bmi-tag.obese{background:#FDE0DC; color:#B33A2A;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+<script>
+const STORAGE_KEY = 'weight-log';
+let state = { entries: {}, user: { nickname: '', height: 0, gender: '' }, bmiHistory: [] };
+let ready = false;
+// ---------- 日期辅助 ----------
+function fmt(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function todayStr(){ return fmt(new Date()); }
+function addDays(dateStr, delta){
+  const [y,m,d]=dateStr.split('-').map(Number);
+  const dt=new Date(y,m-1,d); dt.setDate(dt.getDate()+delta);
+  return fmt(dt);
+}
+function weekdayCN(dateStr){
+  const days=['周日','周一','周二','周三','周四','周五','周六'];
+  const [y,m,d]=dateStr.split('-').map(Number);
+  return days[new Date(y,m-1,d).getDay()];
+}
+function displayDate(dateStr, withYear){
+  const [y,m,d]=dateStr.split('-').map(Number);
+  return withYear ? `${y}年${m}月${d}日 ${weekdayCN(dateStr)}` : `${m}月${d}日 ${weekdayCN(dateStr)}`;
+}
+function shortDate(dateStr){
+  const [,m,d]=dateStr.split('-');
+  return `${Number(m)}/${Number(d)}`;
+}
+function nowTime(){
+  const d=new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function daysBetween(d1, d2){
+  const a=new Date(d1), b=new Date(d2);
+  return Math.floor((a-b)/(86400000));
+}
+// ---------- 存储 ----------
+function loadData() {
+  try {
+	const raw = localStorage.getItem(STORAGE_KEY);
+	if (raw) {
+	  const parsed = JSON.parse(raw);
+	  if (parsed) {
+		state.entries = parsed.entries || {};
+		state.user = parsed.user || { nickname: '', height: 0, gender: '' };
+		state.bmiHistory = parsed.bmiHistory || [];
+	  }
+	}
+  } catch (e) {}
+  ready = true;
+  render();
+}
+function persist() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+// ---------- BMI 计算与分类 ----------
+function getBMICategory(bmi) {
+  if (bmi < 18.5) return { label: '偏瘦', cls: 'underweight' };
+  if (bmi < 24) return { label: '正常', cls: 'normal' };
+  if (bmi < 28) return { label: '超重', cls: 'overweight' };
+  return { label: '肥胖', cls: 'obese' };
+}
+function updateBMIHistory() {
+  const morningDates = Object.keys(state.entries)
+	.filter(d => state.entries[d].morning)
+	.sort();
+  if (morningDates.length === 0) return;
+  const firstDate = morningDates[0];
+  const height = state.user.height;
+  if (!height || height <= 0) return;
+  morningDates.forEach(date => {
+	const days = daysBetween(date, firstDate);
+	if (days % 14 === 0) {
+	  const weight = state.entries[date].morning.weight;
+	  const bmi = Math.round((weight / ((height/100)*(height/100))) * 10) / 10;
+	  const existing = state.bmiHistory.find(h => h.date === date);
+	  if (!existing) {
+		state.bmiHistory.push({ date, bmi });
+	  } else {
+		existing.bmi = bmi;
+	  }
+	}
+  });
+  state.bmiHistory.sort((a,b) => a.date.localeCompare(b.date));
+  persist();
+}
+// ---------- 分析（增强版） ----------
+function computeAnalysis(){
+  const t = todayStr();
+  const y = addDays(t,-1);
+  const today = state.entries[t] || {};
+  const yest = state.entries[y] || {};
+  const out = {};
+  if(today.morning && today.evening){
+	out.dailyFluct = Math.round((today.evening.weight - today.morning.weight)*10)/10;
+  }
+  if(yest.evening && today.morning){
+	out.overnight = Math.round((today.morning.weight - yest.evening.weight)*10)/10;
+  }
+  if(yest.morning && today.morning){
+	out.dayOverDay = Math.round((today.morning.weight - yest.morning.weight)*10)/10;
+  }
+  return out;
+}
+function interpretDailyFluct(v){
+  const absV = Math.abs(v);
+  let text = '';
+  let tone = 'good';
+  let warning = null;
+  let alert = null;
+  if (absV <= 0.5) {
+	text = '波动极小，说明今天饮水和进食量很稳定，体重几乎未受日间影响。';
+  } else if (absV <= 1.0) {
+	text = `波动 ${v>0?'上升':'下降'} ${absV}kg，属于正常日间水分和食物波动，通常由饮食、饮水或排便引起。`;
+  } else if (absV <= 1.8) {
+	text = `波动 ${v>0?'上升':'下降'} ${absV}kg，幅度略大，可能与高盐饮食、大量饮水或不同衣物有关。建议称重时保持相同条件。`;
+	tone = 'neutral';
+  } else if (absV <= 2.5) {
+	text = `波动 ${v>0?'上升':'下降'} ${absV}kg，变化较明显，建议检查称重时间是否一致（如饭后 vs 空腹），或是否存在水分潴留。`;
+	tone = 'neutral';
+	warning = '波动偏大，建议排除称重误差';
+  } else {
+	text = `波动 ${v>0?'上升':'下降'} ${absV}kg，变化极大，远超正常范围。请确认称重设备是否准确，或是否在称重时穿着厚重衣物。`;
+	tone = 'alert';
+	alert = '⚠️ 异常波动，请核查称重条件';
+  }
+  return { tone, text, warning, alert };
+}
+function interpretOvernight(v){
+  const absV = Math.abs(v);
+  let text = '';
+  let tone = 'good';
+  let warning = null;
+  let alert = null;
+  if (v < -1.5) {
+	text = `下降 ${absV}kg，幅度很大。通常夜间水分流失不会超过1kg，请确认昨晚称重是否在晚餐后，今早是否空腹。`;
+	tone = 'neutral';
+	warning = '下降幅度异常，可能测量条件差异';
+  } else if (v < -0.8) {
+	text = `下降 ${absV}kg，属于较大幅度的夜间代谢和水分流失，可能与室温高、出汗多或睡前饮水少有关。`;
+	tone = 'neutral';
+  } else if (v < -0.2) {
+	text = `下降 ${absV}kg，处于正常的夜间水分流失和基础代谢消耗范围。`;
+  } else if (v <= 0.2) {
+	text = `变化 ${v>=0?'上升':'下降'} ${absV}kg，几乎持平，可能因睡前饮水、进食或睡眠质量影响。`;
+	tone = 'neutral';
+  } else if (v <= 0.8) {
+	text = `上升 ${absV}kg，不降反升，常见于睡前高盐饮食、水钠潴留或称重时间差异（如昨晚称重较早，今早称重较晚）。`;
+	tone = 'neutral';
+	warning = '不降反升，关注睡前饮食';
+  } else {
+	text = `上升 ${absV}kg，上升幅度较大，请确认昨晚和今早的称重条件是否一致，或是否存在水肿情况。`;
+	tone = 'alert';
+	alert = '⚠️ 异常上升，建议核查';
+  }
+  return { tone, text, warning, alert };
+}
+function interpretDayOverDay(v){
+  const absV = Math.abs(v);
+  let text = '';
+  let tone = 'good';
+  let warning = null;
+  let alert = null;
+  if (absV <= 0.3) {
+	text = `与昨日早晨基本持平（${v>0?'+':''}${v}kg），体重稳定。`;
+  } else if (absV <= 0.8) {
+	text = `较昨日早晨 ${v>0?'上升':'下降'} ${absV}kg，属于正常波动，可能与水分、排便或盐分有关，不代表脂肪变化。`;
+	tone = 'neutral';
+  } else if (absV <= 1.5) {
+	text = `较昨日早晨 ${v>0?'上升':'下降'} ${absV}kg，变化较明显，建议回顾昨日饮食和活动，或检查称重时间是否一致。`;
+	tone = 'neutral';
+	warning = '变化较大，关注饮食和水分';
+  } else {
+	text = `较昨日早晨 ${v>0?'上升':'下降'} ${absV}kg，变化极大，请确认称重设备准确性或是否有其他干扰因素。`;
+	tone = 'alert';
+	alert = '⚠️ 大幅波动，请核查数据';
+  }
+  return { tone, text, warning, alert };
+}
+// ---------- 渲染 ----------
+function render(){
+  const app = document.getElementById('app');
+  if(!ready){ app.innerHTML=''; return; }
+  const t = todayStr();
+  const hasAny = Object.keys(state.entries).length > 0;
+  app.innerHTML = `
+	<header>
+	  <h1>体重日记</h1>
+	  <div class="date">${displayDate(t, true)}</div>
+	</header>
+	${renderUserCard()}
+	${renderTodayCard(t)}
+	${hasAny ? renderStats() : ''}
+	${renderBMI()}
+	${hasAny ? renderChart() : ''}
+	${hasAny ? renderHistory(t) : renderEmptyState()}
+	<div class="disclaimer">
+  <div style="font-weight:600; margin-bottom:6px; color:var(--ink);">指标说明</div>
+  <div style="margin-bottom:4px;">
+	<strong>今日波动</strong>：晚上体重 − 早上体重。反映当天饮食、饮水带来的正常浮动（通常在 ±1kg 内）。
+  </div>
+  <div style="margin-bottom:4px;">
+	<strong>隔夜变化</strong>：今早体重 − 昨晚体重。反映夜间代谢和水分流失，下降 0.2~1kg 通常属于正常代谢。
+  </div>
+  <div style="margin-bottom:8px;">
+	<strong>隔日变化</strong>：今早体重 − 昨早体重。排除日间饮食干扰，更能体现体脂的长期真实趋势。
+  </div>
+  <hr style="border:0.5px solid var(--line); margin:8px 0;">
+  <div>
+	体重受水分、盐分、排便、穿着和称重时间等多种因素影响，单日数字仅供参考，建议关注整体趋势。此工具不替代专业医疗建议。
+  </div>
+</div>
+  `;
+  attachEvents(t);
+}
+function renderUserCard(){
+  const u = state.user;
+  if(u.nickname && u.height){
+	const genderDisplay = u.gender ? ` · ${u.gender}` : '';
+	return `
+	  <div class="user-card" data-action="edit-user">
+		<div class="info">
+		  <span class="nickname">${u.nickname}</span>
+		  <span class="height">身高 ${u.height} cm${genderDisplay}</span>
+		</div>
+		<span class="edit-hint">✎</span>
+	  </div>`;
+  } else {
+	return `
+	  <div class="user-card" data-action="edit-user">
+		<span class="placeholder">点击设置个人信息（昵称、身高、性别）</span>
+		<span class="edit-hint">✎</span>
+	  </div>`;
+  }
+}
+function renderTodayCard(t){
+  const day = state.entries[t] || {};
+  return `
+	<section>
+	  <div class="section-label">今天</div>
+	  <div class="today-grid">
+		${renderSlot('morning','上午',day.morning)}
+		${renderSlot('evening','晚上',day.evening)}
+	  </div>
+	</section>
+  `;
+}
+function renderSlot(period, label, data){
+  if(data){
+	return `
+	  <div class="slot ${period}" data-action="edit" data-period="${period}">
+		<div class="slot-label"><span>${label}</span><span class="slot-time">${data.time}</span></div>
+		<div class="slot-value">${data.weight}<span class="unit">kg</span></div>
+	  </div>`;
+  }
+  return `
+	<div class="slot ${period}" data-action="add" data-period="${period}">
+	  <div class="slot-label"><span>${label}</span></div>
+	  <div class="slot-empty">+ 记录</div>
+	</div>`;
+}
+function renderStats(){
+  const a = computeAnalysis();
+  const tiles = [
+	statTile('今日波动', a.dailyFluct, interpretDailyFluct),
+	statTile('隔夜变化', a.overnight, interpretOvernight),
+	statTile('隔日变化', a.dayOverDay, interpretDayOverDay),
+  ];
+  return `
+	<section>
+	  <div class="section-label">今日概览</div>
+	  <div class="stats-row">${tiles.join('')}</div>
+	</section>
+  `;
+}
+function statTile(label, value, interpretFn){
+  if(value === undefined){
+	return `
+	  <div class="stat">
+		<div class="stat-label">${label}</div>
+		<div class="stat-value empty">--</div>
+		<div class="stat-text">数据不足，继续记录即可看到</div>
+	  </div>`;
+  }
+  const info = interpretFn(value);
+  const sign = value>0 ? '+' : '';
+  const valueClass = info.alert ? 'alert' : (info.warning ? 'warning' : info.tone);
+  let extra = '';
+  if (info.alert) {
+	extra = `<div class="stat-alert">${info.alert}</div>`;
+  } else if (info.warning) {
+	extra = `<div class="stat-warning">⚠️ ${info.warning}</div>`;
+  }
+  return `
+	<div class="stat">
+	  <div class="stat-label">${label}</div>
+	  <div class="stat-value ${valueClass}">${sign}${value}kg</div>
+	  <div class="stat-text">${info.text}</div>
+	  ${extra}
+	</div>`;
+}
+function renderBMI(){
+  const height = state.user.height;
+  const bmiList = state.bmiHistory;
+  if(!height || height<=0 || bmiList.length===0){
+	return `
+	  <section>
+		<div class="section-label">BMI 变化 (每14天)</div>
+		<div class="chart-card">
+		  <div class="chart-empty">请先设置身高，并至少记录一次早晨体重，系统将自动追踪每14天的BMI。</div>
+		</div>
+	  </section>`;
+  }
+  const latest = bmiList[bmiList.length-1];
+  const latestCategory = getBMICategory(latest.bmi);
+  const rows = bmiList.map(item => {
+	const cat = getBMICategory(item.bmi);
+	return `
+	  <div class="bmi-row">
+		<span class="bmi-date">${displayDate(item.date, false)}</span>
+		<span class="bmi-value">${item.bmi} <span class="bmi-tag ${cat.cls}">${cat.label}</span></span>
+	  </div>`;
+  }).join('');
+  return `
+	<section>
+	  <div class="section-label">BMI 变化 (每14天) · 最新 ${latest.bmi} (${latestCategory.label})</div>
+	  <div class="bmi-list">${rows}</div>
+	</section>
+  `;
+}
+function renderChart(){
+  const dates = Object.keys(state.entries).sort();
+  const points = dates
+	.filter(d => state.entries[d].morning)
+	.map(d => ({date:d, weight: state.entries[d].morning.weight}))
+	.slice(-14);
+  if(points.length < 2){
+	return `
+	  <section>
+		<div class="section-label">早晨体重趋势</div>
+		<div class="chart-card"><div class="chart-empty">再记录几天早晨体重，这里就会画出趋势</div></div>
+	  </section>`;
+  }
+  return `
+	<section>
+	  <div class="section-label">近${points.length}天早晨体重趋势</div>
+	  <div class="chart-card">
+		<canvas id="trendChart" width="416" height="120" style="width:100%; height:120px; display:block;"></canvas>
+		<div class="chart-labels"><span>${shortDate(points[0].date)}</span><span>${shortDate(points[points.length-1].date)}</span></div>
+	  </div>
+	</section>`;
+}
+function drawChart(){
+  const canvas = document.getElementById('trendChart');
+  if(!canvas) return;
+  const dates = Object.keys(state.entries).sort();
+  const points = dates
+	.filter(d => state.entries[d].morning)
+	.map(d => state.entries[d].morning.weight)
+	.slice(-14);
+  if(points.length<2) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth, cssH = canvas.clientHeight;
+  canvas.width = cssW*dpr; canvas.height = cssH*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const pad = {top:12,right:8,bottom:6,left:8};
+  const w = cssW - pad.left - pad.right;
+  const h = cssH - pad.top - pad.bottom;
+  const min = Math.min(...points), max = Math.max(...points);
+  const range = (max-min) || 1;
+  const xy = points.map((v,i)=>({
+	x: pad.left + (i/(points.length-1))*w,
+	y: pad.top + h - ((v-min)/range)*h
+  }));
+  ctx.strokeStyle = '#5C6BC0';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  xy.forEach((p,i)=> i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+  ctx.stroke();
+  ctx.fillStyle = '#5C6BC0';
+  xy.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,2.5,0,Math.PI*2); ctx.fill(); });
+  ctx.fillStyle = '#8a8578';
+  ctx.font = '11px Inter, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(max.toFixed(1)+'kg', cssW-pad.right, pad.top+4);
+  ctx.fillText(min.toFixed(1)+'kg', cssW-pad.right, cssH-pad.bottom);
+}
+function renderHistory(t){
+  const dates = Object.keys(state.entries).sort().reverse();
+  const shown = dates.slice(0, historyLimit);
+  const rows = shown.map(d=>{
+	const day = state.entries[d];
+	return `
+	  <div class="history-row">
+		<div class="history-date">${shortDate(d)} ${weekdayCN(d)}</div>
+		${historyCell(d,'morning',day.morning)}
+		${historyCell(d,'evening',day.evening)}
+	  </div>`;
+  }).join('');
+  return `
+	<section>
+	  <div class="section-label">历史记录</div>
+	  <div class="history-list">${rows}</div>
+	  ${dates.length > shown.length ? `<button class="more-btn" data-action="more">显示更多</button>` : ''}
+	  <button class="more-btn" data-action="backlog" style="margin-top:8px;">+ 补录其他日期</button>
+	</section>`;
+}
+function historyCell(date, period, data){
+  if(!data) return `<div class="history-cell empty">未记录</div>`;
+  return `<div class="history-cell ${period}" data-action="edit" data-date="${date}" data-period="${period}"><span class="w">${data.weight}</span><span>kg</span></div>`;
+}
+function renderEmptyState(){
+  return `
+	<section>
+	  <div class="empty-state">
+		<p>还没有记录。从今天的上午或晚上开始，坚持记录几天，就能看到波动和趋势分析。</p>
+		<button data-action="add" data-period="morning">记录第一条</button>
+	  </div>
+	</section>`;
+}
+let historyLimit = 10;
+// ---------- 事件绑定 ----------
+function attachEvents(t){
+  document.querySelectorAll('[data-action="add"], [data-action="edit"]').forEach(el=>{
+	el.addEventListener('click', ()=>{
+	  const period = el.getAttribute('data-period');
+	  const date = el.getAttribute('data-date') || t;
+	  openSheet(date, period);
+	});
+  });
+  const moreBtn = document.querySelector('[data-action="more"]');
+  if(moreBtn) moreBtn.addEventListener('click', ()=>{ historyLimit += 10; render(); });
+  const backlogBtn = document.querySelector('[data-action="backlog"]');
+  if(backlogBtn) backlogBtn.addEventListener('click', ()=> openSheet(t, 'morning', true));
+  const userCard = document.querySelector('[data-action="edit-user"]');
+  if(userCard) userCard.addEventListener('click', openUserSheet);
+  drawChart();
+}
+
+// ================================================================
+// ★★★ 键盘避让（纯滚动方案，针对 PWA 优化） ★★★
+// ================================================================
+function setupKeyboardAdjustment(sheetElement, inputs) {
+  if (!sheetElement) return;
+  const sheetContent = sheetElement.querySelector('.sheet-content');
+  if (!sheetContent) return;
+  let activeInput = null;
+  function scrollToActiveInput() {
+	if (!activeInput) return;
+	setTimeout(() => {
+	  try {
+		const contentRect = sheetContent.getBoundingClientRect();
+		const inputRect = activeInput.getBoundingClientRect();
+		const offsetTop = inputRect.top - contentRect.top + sheetContent.scrollTop;
+		const targetScroll = offsetTop - sheetContent.clientHeight * 0.3;
+		const maxScroll = sheetContent.scrollHeight - sheetContent.clientHeight;
+		const finalScroll = Math.max(0, Math.min(targetScroll, maxScroll));
+		sheetContent.scrollTo({ top: finalScroll, behavior: 'smooth' });
+	  } catch (e) {
+		try { activeInput.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e2) {}
+	  }
+	}, 350);
+  }
+  document.addEventListener('focusin', function(e) {
+	const target = e.target;
+	if (sheetContent.contains(target) && (target.tagName === 'INPUT' || target.tagName === 'SELECT')) {
+	  activeInput = target;
+	  scrollToActiveInput();
+	  setTimeout(scrollToActiveInput, 600);
+	  setTimeout(scrollToActiveInput, 900);
+	}
+  });
+  document.addEventListener('focusout', function(e) {
+	const target = e.target;
+	if (sheetContent.contains(target) && (target.tagName === 'INPUT' || target.tagName === 'SELECT')) {
+	  activeInput = null;
+	  setTimeout(() => {
+		if (!activeInput) {
+		  sheetContent.scrollTo({ top: 0, behavior: 'smooth' });
+		}
+	  }, 300);
+	}
+  });
+  sheetElement.addEventListener('click', function(e) {
+	if (e.target === sheetElement || e.target === sheetContent) {
+	  if (activeInput) scrollToActiveInput();
+	}
+  });
+  sheetElement._keyboardCleanup = function() {
+	activeInput = null;
+  };
+}
+
+// ---------- 用户信息弹窗（含性别） ----------
+function openUserSheet(){
+  const u = state.user;
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.innerHTML = `
+	<div class="sheet">
+	  <div class="sheet-content">
+		<h2>个人信息</h2>
+		<div class="field">
+		  <label>昵称</label>
+		  <input type="text" id="f-nickname" value="${u.nickname || ''}" placeholder="例如：小张">
+		</div>
+		<div class="field">
+		  <label>身高 (cm)</label>
+		  <input type="number" id="f-height" inputmode="decimal" step="0.1" value="${u.height || ''}" placeholder="例如 170">
+		</div>
+		<div class="field">
+		  <label>性别</label>
+		  <select id="f-gender">
+			<option value="">未选择</option>
+			<option value="男" ${u.gender==='男'?'selected':''}>男</option>
+			<option value="女" ${u.gender==='女'?'selected':''}>女</option>
+		  </select>
+		</div>
+		<div class="sheet-actions">
+		  <button class="btn-cancel" data-x="cancel">取消</button>
+		  <button class="btn-save" data-x="save-user">保存</button>
+		</div>
+	  </div>
+	</div>
+  `;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(()=> overlay.classList.add('open'));
+  const sheet = overlay.querySelector('.sheet');
+  const inputs = overlay.querySelectorAll('input');
+  setupKeyboardAdjustment(sheet, inputs);
+  function close(){
+	overlay.classList.remove('open');
+	if (sheet._keyboardCleanup) sheet._keyboardCleanup();
+	setTimeout(()=> overlay.remove(), 180);
+  }
+  overlay.addEventListener('click', (e)=> { if(e.target===overlay) close(); });
+  overlay.querySelector('[data-x="cancel"]').addEventListener('click', close);
+  overlay.querySelector('[data-x="save-user"]').addEventListener('click', ()=>{
+	const nickname = overlay.querySelector('#f-nickname').value.trim() || '未命名';
+	const height = parseFloat(overlay.querySelector('#f-height').value);
+	const gender = overlay.querySelector('#f-gender').value;
+	if(isNaN(height) || height<=0 || height>300){
+	  showToast('请输入有效身高 (cm)');
+	  return;
+	}
+	state.user.nickname = nickname;
+	state.user.height = height;
+	state.user.gender = gender;
+	persist();
+	state.bmiHistory = [];
+	updateBMIHistory();
+	close();
+	render();
+	showToast('信息已保存');
+  });
+}
+// ---------- 记录弹窗 ----------
+function openSheet(date, period, forceDateEdit){
+  const existing = (state.entries[date] || {})[period];
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.innerHTML = `
+	<div class="sheet">
+	  <div class="sheet-content">
+		<h2>${existing ? '编辑记录' : '添加记录'}</h2>
+		<div class="field">
+		  <label>日期</label>
+		  <input type="date" id="f-date" value="${date}" max="${todayStr()}">
+		</div>
+		<div class="field">
+		  <label>时段</label>
+		  <div class="period-toggle">
+			<button type="button" class="morning ${period==='morning'?'active morning':''}" data-p="morning">上午</button>
+			<button type="button" class="evening ${period==='evening'?'active evening':''}" data-p="evening">晚上</button>
+		  </div>
+		</div>
+		<div class="field">
+		  <label>体重 (kg)</label>
+		  <input type="number" id="f-weight" inputmode="decimal" step="0.1" min="0" max="300" value="${existing ? existing.weight : ''}" placeholder="例如 52.3">
+		</div>
+		<div class="field">
+		  <label>时间</label>
+		  <input type="time" id="f-time" value="${existing ? existing.time : nowTime()}">
+		</div>
+		<div class="sheet-actions">
+		  <button class="btn-cancel" data-x="cancel">取消</button>
+		  ${existing ? '<button class="btn-delete" data-x="delete">删除</button>' : ''}
+		  <button class="btn-save" data-x="save">保存</button>
+		</div>
+	  </div>
+	</div>
+  `;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(()=> overlay.classList.add('open'));
+  const sheet = overlay.querySelector('.sheet');
+  const inputs = overlay.querySelectorAll('input');
+  setupKeyboardAdjustment(sheet, inputs);
+  let selectedPeriod = period;
+  overlay.querySelectorAll('.period-toggle button').forEach(btn=>{
+	btn.addEventListener('click', ()=>{
+	  selectedPeriod = btn.getAttribute('data-p');
+	  overlay.querySelectorAll('.period-toggle button').forEach(b=>b.classList.remove('active','morning','evening'));
+	  btn.classList.add('active', selectedPeriod);
+	});
+  });
+  function close(){
+	overlay.classList.remove('open');
+	if (sheet._keyboardCleanup) sheet._keyboardCleanup();
+	setTimeout(()=> overlay.remove(), 180);
+  }
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  overlay.querySelector('[data-x="cancel"]').addEventListener('click', close);
+  const deleteBtn = overlay.querySelector('[data-x="delete"]');
+  if(deleteBtn){
+	deleteBtn.addEventListener('click', ()=>{
+	  const d = overlay.querySelector('#f-date').value;
+	  if(state.entries[d]){
+		delete state.entries[d][period];
+		if(!state.entries[d].morning && !state.entries[d].evening) delete state.entries[d];
+	  }
+	  state.bmiHistory = [];
+	  updateBMIHistory();
+	  persist();
+	  close();
+	  render();
+	  showToast('已删除');
+	});
+  }
+  overlay.querySelector('[data-x="save"]').addEventListener('click', ()=>{
+	const d = overlay.querySelector('#f-date').value;
+	const w = parseFloat(overlay.querySelector('#f-weight').value);
+	const tm = overlay.querySelector('#f-time').value || nowTime();
+	if(!d || isNaN(w) || w<=0){
+	  showToast('请填写有效的体重');
+	  return;
+	}
+	if(!state.entries[d]) state.entries[d] = {};
+	state.entries[d][selectedPeriod] = { weight: Math.round(w*10)/10, time: tm };
+	state.bmiHistory = [];
+	updateBMIHistory();
+	persist();
+	close();
+	render();
+	showToast('已保存');
+  });
+}
+
+// ---------- 启动 ----------
+loadData();
+
+// ---------- PWA Service Worker 注册 ----------
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js')
+	.then(() => console.log('Service Worker 注册成功'))
+	.catch(err => console.log('Service Worker 注册失败:', err));
+}
+</script>
+</body>
+</html>
